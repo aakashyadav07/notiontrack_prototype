@@ -104,12 +104,39 @@ async function api(req,res){
     return json(res,200,{students:db.students.length, exams:db.exams.length, rooms:db.rooms.filter(r=>r.status==="Available").length, conflicts:open, faculty:db.faculty.length, departments:db.departments.length, sourceFiles:db.meta?.sourceFiles||[]});
   }
   if(p==="/api/generate/timetable" && req.method==="POST"){
+    const body=await parseBody(req);
+    const departments=Array.isArray(body.departments)&&body.departments.length?body.departments:db.departments.map(x=>x.id);
+    const rooms=Array.isArray(body.rooms)&&body.rooms.length?body.rooms:db.rooms.filter(r=>r.status==="Available").map(r=>r.room);
+    const slots=Array.isArray(body.slots)&&body.slots.length?body.slots:["09:00 - 12:00","14:00 - 17:00"];
+    if(!departments.length) return json(res,400,{error:"Select at least one department"});
+    if(!rooms.length) return json(res,400,{error:"Select at least one usable room"});
+    if(!slots.length) return json(res,400,{error:"Add at least one time slot"});
     await new Promise(r=>setTimeout(r,250));
-    db.exams=db.exams.map(e=>e.status==="Conflict"?{...e,room:"Hall E",status:"Published"}:e);
-    db.conflicts=db.conflicts.map(c=>c.id==="CF-001"?{...c,status:"Resolved"}:c);
-    db.notifications.unshift({id:id("N"),title:"Timetable optimized",text:"Constraint checks completed and the timetable was updated.",time:"Just now",type:"success"});
+    // Replace only the selected departments' schedule. Other departments remain untouched.
+    db.exams=db.exams.filter(e=>!departments.includes(e.department));
+    let roomIndex=0,slotIndex=0,counter=1;
+    const selectedSubjects=(db.subjects||[]).filter(s=>departments.includes(s.department));
+    for(const sub of selectedSubjects){
+      const dept=sub.department;
+      const date=(body.departmentDates&&body.departmentDates[dept])||body.startDate||"2026-09-04";
+      const slot=slots[slotIndex++%slots.length];
+      let remaining=db.students.filter(s=>s.department===dept).length||30;
+      let guard=0;
+      while(remaining>0 && guard<rooms.length){
+        const roomName=rooms[(roomIndex++)%rooms.length];
+        const room=db.rooms.find(r=>r.room===roomName);
+        const capacity=room?.capacity||60;
+        const assigned=Math.min(capacity,remaining);
+        db.exams.push({id:`EX-GEN-${String(counter++).padStart(3,"0")}`,subject:sub.subject,department:dept,date,time:slot,room:roomName,students:assigned,status:"Published"});
+        remaining-=assigned; guard++;
+      }
+      if(remaining>0){
+        db.conflicts.unshift({id:id("CF"),type:"Room",severity:"High",title:`Insufficient room capacity for ${sub.subject}`,detail:`${remaining} students remain after using all selected rooms for ${sub.subject} on ${date}.`,status:"Open"});
+      }
+    }
+    db.notifications.unshift({id:id("N"),title:"Timetable generated",text:`${db.exams.length} scheduled exam entries using ${rooms.length} selected rooms and ${slots.length} time slots.`,time:"Just now",type:"success"});
     saveDb();
-    return json(res,200,{ok:true,message:"Optimized timetable generated",exams:db.exams});
+    return json(res,200,{ok:true,message:"Timetable generated with selected configuration",exams:clone(db.exams),configuration:{departments,rooms,slots,departmentDates:body.departmentDates||{}}});
   }
   if(p==="/api/generate/seats" && req.method==="POST"){
     const body=await parseBody(req);
