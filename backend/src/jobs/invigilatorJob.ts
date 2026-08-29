@@ -29,7 +29,7 @@ jobQueue.registerHandler('INVIGILATOR_ASSIGNMENT', async (payload: any, updatePr
       where: { user: { isActive: true } },
     });
     
-    const examSessions = timetable.entries.map(e => ({
+    const examSessions = timetable.entries.map((e: typeof timetable.entries[0]) => ({
       examId: e.examId,
       roomId: e.roomId,
       date: e.date.toISOString().split('T')[0],
@@ -40,7 +40,7 @@ jobQueue.registerHandler('INVIGILATOR_ASSIGNMENT', async (payload: any, updatePr
     
     const request = {
       examSessions,
-      faculty: faculty.map(f => ({ id: f.id, maxWorkload: f.maxWorkload })),
+      faculty: faculty.map((f: typeof faculty[0]) => ({ id: f.id, maxWorkload: f.maxWorkload })),
       invigilatorRatio,
       includeRelievers,
       relieverPercentage,

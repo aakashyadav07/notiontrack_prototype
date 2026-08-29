@@ -122,15 +122,15 @@ export const generateTimetable = asyncHandler(async (req: Request, res: Response
     timetableId: timetable.id,
     period: { start: data.startDate, end: data.endDate },
     timeSlots: data.timeSlots,
-    rooms: rooms.map(r => ({ id: r.id, capacity: r.capacity, building: r.building })),
-    exams: exams.map(e => ({
+    rooms: rooms.map((r: typeof rooms[0]) => ({ id: r.id, capacity: r.capacity, building: r.building })),
+    exams: exams.map((e: typeof exams[0]) => ({
       id: e.id,
       subjectId: e.subjectId,
       duration: e.duration,
-      studentIds: e.registrations.map(r => r.studentId),
+      studentIds: e.registrations.map((r: typeof e.registrations[0]) => r.studentId),
       studentCount: e.registrations.length,
     })),
-    faculty: faculty.map(f => ({
+    faculty: faculty.map((f: typeof faculty[0]) => ({
       id: f.id,
       maxWorkload: f.maxWorkload,
       examIds: [],
@@ -300,15 +300,15 @@ export const regenerateTimetable = asyncHandler(async (req: Request, res: Respon
       { type: 'AFTERNOON', start: '13:00', end: '16:00' },
       { type: 'EVENING', start: '17:00', end: '20:00' },
     ],
-    rooms: rooms.map(r => ({ id: r.id, capacity: r.capacity, building: r.building })),
-    exams: exams.map(e => ({
+    rooms: rooms.map((r: typeof rooms[0]) => ({ id: r.id, capacity: r.capacity, building: r.building })),
+    exams: exams.map((e: typeof exams[0]) => ({
       id: e.id,
       subjectId: e.subjectId,
       duration: e.duration,
-      studentIds: e.registrations.map(r => r.studentId),
+      studentIds: e.registrations.map((r: typeof e.registrations[0]) => r.studentId),
       studentCount: e.registrations.length,
     })),
-    faculty: faculty.map(f => ({ id: f.id, maxWorkload: f.maxWorkload, examIds: [] })),
+    faculty: faculty.map((f: typeof faculty[0]) => ({ id: f.id, maxWorkload: f.maxWorkload, examIds: [] })),
   });
 
   res.status(202).json(successResponse({ jobId, timetableId: id, status: 'processing' }));

@@ -175,8 +175,8 @@ export const getStudentTimetable = asyncHandler(async (req: Request, res: Respon
   if (!student) throw new NotFoundError('Student', id);
 
   const timetable = student.examRegistrations
-    .filter(reg => reg.exam.timetableEntries.length > 0)
-    .map(reg => ({
+    .filter((reg: typeof student.examRegistrations[0]) => reg.exam.timetableEntries.length > 0)
+    .map((reg: typeof student.examRegistrations[0]) => ({
       exam: { id: reg.exam.id, subject: { name: reg.exam.subject?.name, code: reg.exam.subject?.code } },
       entries: reg.exam.timetableEntries,
     }));

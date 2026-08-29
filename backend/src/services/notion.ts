@@ -46,7 +46,7 @@ export class NotionService {
       throw new Error('Timetable not found');
     }
 
-    const conflicts = timetable.conflicts.filter(c => !c.isResolved);
+    const conflicts = timetable.conflicts.filter((c: typeof timetable.conflicts[0]) => !c.isResolved);
 
     const response = await this.client.pages.create({
       parent: { database_id: this.databaseId },

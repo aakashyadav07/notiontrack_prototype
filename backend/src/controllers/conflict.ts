@@ -171,8 +171,8 @@ export const getConflictStats = asyncHandler(async (req: Request, res: Response,
 
   res.json(successResponse({
     total,
-    byType: byType.reduce((acc, item) => ({ ...acc, [item.type]: item._count }), {}),
-    bySeverity: bySeverity.reduce((acc, item) => ({ ...acc, [item.severity]: item._count }), {}),
+    byType: byType.reduce((acc: Record<string, number>, item) => ({ ...acc, [item.type]: item._count }), {}),
+    bySeverity: bySeverity.reduce((acc: Record<string, number>, item) => ({ ...acc, [item.severity]: item._count }), {}),
     resolved,
     unresolved,
   }));

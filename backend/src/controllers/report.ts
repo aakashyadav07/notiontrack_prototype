@@ -96,7 +96,7 @@ export const getDashboard = asyncHandler(async (req: Request, res: Response, nex
     resolvedConflicts,
     roomUtilization,
     seatAllocationStatus,
-    upcomingExams: upcomingExams.map(e => ({
+    upcomingExams: upcomingExams.map((e: typeof upcomingExams[0]) => ({
       id: e.id,
       subject: e.subject?.name,
       sessions: e.examSessions,
@@ -192,7 +192,7 @@ export const getTimetableReport = asyncHandler(async (req: Request, res: Respons
     doc.fontSize(10).text(`Period: ${timetable.startDate.toISOString().split('T')[0]} to ${timetable.endDate.toISOString().split('T')[0]}`);
     doc.text(`Status: ${timetable.status}`);
     doc.text(`Exams Scheduled: ${timetable.entries.length}`);
-    doc.text(`Conflicts: ${timetable.conflicts.length} (${timetable.conflicts.filter(c => !c.isResolved).length} unresolved)`);
+    doc.text(`Conflicts: ${timetable.conflicts.length} (${timetable.conflicts.filter((c: typeof timetable.conflicts[0]) => !c.isResolved).length} unresolved)`);
     doc.moveDown();
 
     const headers = ['Date', 'Session', 'Time', 'Exam', 'Subject', 'Room', 'Capacity'];
@@ -326,10 +326,10 @@ export const getConflictReport = asyncHandler(async (req: Request, res: Response
 
   const stats = {
     total: conflicts.length,
-    resolved: conflicts.filter(c => c.isResolved).length,
-    unresolved: conflicts.filter(c => !c.isResolved).length,
-    byType: conflicts.reduce((acc, c) => ({ ...acc, [c.type as string]: (acc[c.type as string] || 0) + 1 }), {} as Record<string, number>),
-    bySeverity: conflicts.reduce((acc, c) => ({ ...acc, [c.severity as string]: (acc[c.severity as string] || 0) + 1 }), {} as Record<string, number>),
+    resolved: conflicts.filter((c: typeof conflicts[0]) => c.isResolved).length,
+    unresolved: conflicts.filter((c: typeof conflicts[0]) => !c.isResolved).length,
+    byType: conflicts.reduce((acc: Record<string, number>, c: typeof conflicts[0]) => ({ ...acc, [c.type as string]: (acc[c.type as string] || 0) + 1 }), {} as Record<string, number>),
+    bySeverity: conflicts.reduce((acc: Record<string, number>, c: typeof conflicts[0]) => ({ ...acc, [c.severity as string]: (acc[c.severity as string] || 0) + 1 }), {} as Record<string, number>),
   };
 
   if (format === 'json') {
@@ -394,7 +394,7 @@ export const getExamStatistics = asyncHandler(async (req: Request, res: Response
     include: { exam: { include: { subject: true, registrations: { where: { status: 'REGISTERED' } } } }, room: true },
   });
 
-  const bySubject = entries.reduce((acc, e) => {
+  const bySubject = entries.reduce((acc: Record<string, { exams: number; students: number }>, e: typeof entries[0]) => {
     const subj = e.exam.subject.name;
     if (!acc[subj]) acc[subj] = { exams: 0, students: 0 };
     acc[subj].exams++;
@@ -402,7 +402,7 @@ export const getExamStatistics = asyncHandler(async (req: Request, res: Response
     return acc;
   }, {} as Record<string, { exams: number; students: number }>);
 
-  const byExamType = entries.reduce((acc, e) => {
+  const byExamType = entries.reduce((acc: Record<string, { exams: number; students: number }>, e: typeof entries[0]) => {
     const type = e.exam.examType;
     if (!acc[type]) acc[type] = { exams: 0, students: 0 };
     acc[type].exams++;
@@ -412,10 +412,10 @@ export const getExamStatistics = asyncHandler(async (req: Request, res: Response
 
   const stats = {
     totalExams: entries.length,
-    totalStudents: entries.reduce((sum, e) => sum + e.exam.registrations.length, 0),
+    totalStudents: entries.reduce((sum: number, e: typeof entries[0]) => sum + e.exam.registrations.length, 0),
     bySubject,
     byExamType,
-    avgStudentsPerExam: entries.length > 0 ? Math.round(entries.reduce((sum, e) => sum + e.exam.registrations.length, 0) / entries.length) : 0,
+    avgStudentsPerExam: entries.length > 0 ? Math.round(entries.reduce((sum: number, e: typeof entries[0]) => sum + e.exam.registrations.length, 0) / entries.length) : 0,
   };
 
   res.json(successResponse(stats));

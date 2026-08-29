@@ -25,7 +25,7 @@ jobQueue.registerHandler('SEAT_ALLOCATION', async (payload: any, updateProgress:
     
     updateProgress(30);
     
-    const rooms = timetable.entries.map(e => ({
+    const rooms = timetable.entries.map((e: typeof timetable.entries[0]) => ({
       id: e.room.id,
       capacity: e.room.capacity,
       rows: e.room.seatLayout?.rows || Math.ceil(Math.sqrt(e.room.capacity / 2)),
@@ -33,13 +33,13 @@ jobQueue.registerHandler('SEAT_ALLOCATION', async (payload: any, updateProgress:
       layout: (e.room.seatLayout?.layout as Record<string, unknown>) ?? undefined,
     }));
     
-    const uniqueRooms = rooms.filter((r, i, arr) => arr.findIndex(x => x.id === r.id) === i);
+    const uniqueRooms = rooms.filter((r: typeof rooms[0], i: number, arr: typeof rooms) => arr.findIndex((x: typeof rooms[0]) => x.id === r.id) === i);
     
     const studentsByExam: Record<string, any[]> = {};
     for (const entry of timetable.entries) {
       const examId = entry.examId;
       if (!studentsByExam[examId]) {
-        studentsByExam[examId] = entry.exam.registrations.map(reg => ({
+        studentsByExam[examId] = entry.exam.registrations.map((reg: typeof entry.exam.registrations[0]) => ({
           id: reg.student.id,
           departmentId: reg.student.departmentId,
           section: reg.student.section,
@@ -48,7 +48,7 @@ jobQueue.registerHandler('SEAT_ALLOCATION', async (payload: any, updateProgress:
     }
     
     const request = {
-      timetableEntries: timetable.entries.map(e => ({
+      timetableEntries: timetable.entries.map((e: typeof timetable.entries[0]) => ({
         examId: e.examId,
         roomId: e.roomId,
         date: e.date.toISOString().split('T')[0],
