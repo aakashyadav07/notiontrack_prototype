@@ -50,7 +50,7 @@ FROM python:3.11-slim AS python-deps
 WORKDIR /app/optimization
 
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends gcc g++ && \
+    apt-get install -y --no-install-recommends gcc g++ libpq-dev && \
     rm -rf /var/lib/apt/lists/*
 
 COPY backend/optimization/requirements.txt ./
@@ -220,7 +220,7 @@ echo "Prisma db push completed."
 # ----------------------------------------------------------
 echo "Starting Python optimizer..."
 cd /app/optimization
-python3 -m uvicorn app:app --host 127.0.0.1 --port 8001 &
+python3 -m uvicorn app:app --host 0.0.0.0 --port 8001 &
 PYTHON_PID=$!
 PIDS="$PIDS $PYTHON_PID"
 
