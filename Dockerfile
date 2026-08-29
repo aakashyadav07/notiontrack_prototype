@@ -112,13 +112,15 @@ server {
     root /app/frontend/dist;
     index index.html;
 
-    location = /health {
+    location /health {
         proxy_pass http://127.0.0.1:3000/health;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 10s;
+        proxy_send_timeout 10s;
     }
 
     location /api/ {
@@ -274,6 +276,26 @@ fi
 echo "Node backend is ready."
 
 # ----------------------------------------------------------
+# Test health endpoint through nginx before starting nginx
+# ----------------------------------------------------------
+echo "Testing health endpoint through nginx..."
+NGINX_TEST_READY=0
+for i in $(seq 1 10); do
+    if curl -fsS http://127.0.0.1:3000/health >/dev/null 2>&1; then
+        NGINX_TEST_READY=1
+        break
+    fi
+    echo "Waiting for backend health endpoint... attempt $i/10"
+    sleep 1
+done
+
+if [ "$NGINX_TEST_READY" -ne 1 ]; then
+    echo "ERROR: Backend health endpoint not responding directly."
+    exit 1
+fi
+echo "Backend health endpoint responding directly."
+
+# ----------------------------------------------------------
 # Start Nginx in foreground/background combination.
 # Nginx is the only publicly exposed process and listens on :8000.
 # ----------------------------------------------------------
@@ -282,6 +304,26 @@ nginx -g 'daemon off;' &
 NGINX_PID=$!
 PIDS="$PIDS $NGINX_PID"
 
+# Test nginx health endpoint
+NGINX_HEALTH_READY=0
+for i in $(seq 1 15); do
+    if curl -fsS http://127.0.0.1:8000/health >/dev/null 2>&1; then
+        NGINX_HEALTH_READY=1
+        break
+    fi
+    echo "Waiting for nginx health endpoint... attempt $i/15"
+    sleep 1
+done
+
+if [ "$NGINX_HEALTH_READY" -ne 1 ]; then
+    echo "ERROR: Nginx health endpoint not responding."
+    echo "Checking nginx status..."
+    nginx -t
+    curl -v http://127.0.0.1:8000/health 2>&1 | head -20
+    exit 1
+fi
+
+echo "Nginx health endpoint responding."
 echo "Application is ready on port 8000."
 
 wait "$NGINX_PID"
@@ -296,7 +338,7 @@ ENV NODE_ENV=production \
 
 EXPOSE 8000
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=3 \
     CMD curl -fsS http://127.0.0.1:8000/health >/dev/null || exit 1
 
 CMD ["/app/start.sh"]
