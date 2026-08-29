@@ -156,14 +156,32 @@ cleanup() {
 trap cleanup TERM INT EXIT
 
 # ----------------------------------------------------------
-# Wait for PostgreSQL before anything that uses Prisma or
-# the Python repository.
+# Check required environment variables
 # ----------------------------------------------------------
+echo "Checking environment variables..."
 if [ -z "${DATABASE_URL:-}" ]; then
-    echo "ERROR: DATABASE_URL is not set."
+    echo "ERROR: DATABASE_URL environment variable is not set."
+    echo "Please set DATABASE_URL in your deployment environment."
     exit 1
 fi
 
+echo "DATABASE_URL is set (length: ${#DATABASE_URL})"
+
+# Check other required env vars
+if [ -z "${JWT_ACCESS_SECRET:-}" ]; then
+    echo "WARNING: JWT_ACCESS_SECRET not set"
+fi
+if [ -z "${JWT_REFRESH_SECRET:-}" ]; then
+    echo "WARNING: JWT_REFRESH_SECRET not set"
+fi
+if [ -z "${PYTHON_SERVICE_API_KEY:-}" ]; then
+    echo "WARNING: PYTHON_SERVICE_API_KEY not set"
+fi
+
+# ----------------------------------------------------------
+# Wait for PostgreSQL before anything that uses Prisma or
+# the Python repository.
+# ----------------------------------------------------------
 echo "Waiting for PostgreSQL..."
 DB_READY=0
 for i in $(seq 1 60); do
@@ -171,25 +189,36 @@ for i in $(seq 1 60); do
         DB_READY=1
         break
     fi
+    echo "Waiting for PostgreSQL... attempt $i/60"
     sleep 2
 done
 
 if [ "$DB_READY" -ne 1 ]; then
-    echo "ERROR: PostgreSQL did not become ready in time."
+    echo "ERROR: PostgreSQL did not become ready in time (120 seconds)."
+    echo "DATABASE_URL: $DATABASE_URL"
+    echo "Check that PostgreSQL is running and accessible from this container."
     exit 1
 fi
 
 echo "PostgreSQL is ready."
 
-# This project currently has no committed Prisma migration directory.
-# Therefore use db push for this prototype deployment.
+# ----------------------------------------------------------
+# Run Prisma db push
+# ----------------------------------------------------------
+echo "Running Prisma db push..."
 cd /app/backend
-npx prisma db push --skip-generate
+if ! npx prisma db push --skip-generate; then
+    echo "ERROR: Prisma db push failed."
+    echo "This might be due to database connection issues or schema conflicts."
+    exit 1
+fi
+echo "Prisma db push completed."
 
 # ----------------------------------------------------------
 # Start Python optimizer.
 # The actual project file is /app/optimization/app.py.
 # ----------------------------------------------------------
+echo "Starting Python optimizer..."
 cd /app/optimization
 python3 -m uvicorn app:app --host 127.0.0.1 --port 8001 &
 PYTHON_PID=$!
@@ -202,11 +231,14 @@ for i in $(seq 1 30); do
         PYTHON_READY=1
         break
     fi
+    echo "Waiting for Python optimizer... attempt $i/30"
     sleep 1
 done
 
 if [ "$PYTHON_READY" -ne 1 ]; then
     echo "ERROR: Python optimization service failed to start."
+    echo "Check Python service logs above for errors."
+    kill $PYTHON_PID 2>/dev/null || true
     exit 1
 fi
 
@@ -215,6 +247,7 @@ echo "Python optimization service is ready."
 # ----------------------------------------------------------
 # Start Node backend on its internal port.
 # ----------------------------------------------------------
+echo "Starting Node backend..."
 cd /app/backend
 node dist/server.js &
 NODE_PID=$!
@@ -227,11 +260,14 @@ for i in $(seq 1 30); do
         NODE_READY=1
         break
     fi
+    echo "Waiting for Node backend... attempt $i/30"
     sleep 1
 done
 
 if [ "$NODE_READY" -ne 1 ]; then
     echo "ERROR: Node backend failed to start."
+    echo "Check Node backend logs above for errors."
+    kill $NODE_PID 2>/dev/null || true
     exit 1
 fi
 
@@ -241,6 +277,7 @@ echo "Node backend is ready."
 # Start Nginx in foreground/background combination.
 # Nginx is the only publicly exposed process and listens on :8000.
 # ----------------------------------------------------------
+echo "Starting Nginx..."
 nginx -g 'daemon off;' &
 NGINX_PID=$!
 PIDS="$PIDS $NGINX_PID"
